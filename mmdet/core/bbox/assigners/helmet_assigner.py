@@ -97,7 +97,7 @@ class HelmetAssigner(BaseAssigner):
         num_gts = gt_bboxes.size(0)
 
         assigned_gt_inds = torch.tensor(img_meta['gt_idx'],dtype=torch.long)
-        assigned_labels = torch.tensor([0 if idx>0 else -1for idx in img_meta['gt_idx']],dtype=torch.long)
+        assigned_labels = torch.tensor([0 if idx>0 else -1 for idx in img_meta['gt_idx']],dtype=torch.long)
         
         return AssignResult(
             num_gts, assigned_gt_inds, None, labels=assigned_labels)

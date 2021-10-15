@@ -129,7 +129,11 @@ class LoadImageWithTrackingData(LoadImageFromFile):
 
         tracking_df = pd.read_csv(tracking_filename)
         results['tracking_data'] = torch.from_numpy(np.array(tracking_df[['x','y']],dtype=np.float32))
-        results['gt_idx'] = tracking_df['gt_idx'].tolist()
+        
+        if 'Sideline' in results['img_info']['filename'] and 'Sideline_gt_idx' in tracking_df.columns:
+            results['gt_idx'] = tracking_df['Sideline_gt_idx'].tolist()
+        elif 'Endzone' in results['img_info']['filename'] and 'Endzone_gt_idx' in tracking_df.columns:
+            results['gt_idx'] = tracking_df['Endzone_gt_idx'].tolist()
         
         return results
 
