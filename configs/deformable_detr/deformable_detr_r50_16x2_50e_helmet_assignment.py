@@ -79,8 +79,6 @@ data = dict(
     val=dict(pipeline=test_pipeline),
     test=dict(pipeline=test_pipeline))
 
-load_from ='/mnt/d/personal/kaggle/helmet_detection/codes/mmdetection/checkpoints/deformable_detr_r50_16x2_50e_helmet_detection.pth'
-
 model = dict(
     bbox_head=dict(
         type='DeformableDETRHeadWithTrackingData',
