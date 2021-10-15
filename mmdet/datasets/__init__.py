@@ -14,6 +14,8 @@ from .utils import (NumClassCheckHook, get_loading_pipeline,
 from .voc import VOCDataset
 from .wider_face import WIDERFaceDataset
 from .xml_style import XMLDataset
+from .helmet_detection import HelmetDataset
+from .helmet_assignment import HelmetAssignmentDataset
 
 __all__ = [
     'CustomDataset', 'XMLDataset', 'CocoDataset', 'DeepFashionDataset',
@@ -22,5 +24,5 @@ __all__ = [
     'DistributedSampler', 'build_dataloader', 'ConcatDataset', 'RepeatDataset',
     'ClassBalancedDataset', 'WIDERFaceDataset', 'DATASETS', 'PIPELINES',
     'build_dataset', 'replace_ImageToTensor', 'get_loading_pipeline',
-    'NumClassCheckHook', 'CocoPanopticDataset', 'MultiImageMixDataset'
+    'NumClassCheckHook', 'CocoPanopticDataset', 'MultiImageMixDataset','HelmetDataset','HelmetAssignmentDataset'
 ]
