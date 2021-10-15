@@ -292,7 +292,7 @@ class Collect:
                  keys,
                  meta_keys=('filename', 'ori_filename', 'ori_shape',
                             'img_shape', 'pad_shape', 'scale_factor', 'flip',
-                            'flip_direction', 'img_norm_cfg')):
+                            'flip_direction', 'img_norm_cfg','tracking_data','gt_idx')):
         self.keys = keys
         self.meta_keys = meta_keys
 
@@ -313,7 +313,8 @@ class Collect:
         data = {}
         img_meta = {}
         for key in self.meta_keys:
-            img_meta[key] = results[key]
+            if key in results:
+                img_meta[key] = results[key]
         data['img_metas'] = DC(img_meta, cpu_only=True)
         for key in self.keys:
             data[key] = results[key]
@@ -323,6 +324,10 @@ class Collect:
         return self.__class__.__name__ + \
             f'(keys={self.keys}, meta_keys={self.meta_keys})'
 
+#TODO: Collect include tracking data
+@PIPELINES.register_module()
+class CollectWithTrackingData(Collect):
+    pass
 
 @PIPELINES.register_module()
 class WrapFieldsToLists:

@@ -4,9 +4,10 @@ import os.path as osp
 import mmcv
 import numpy as np
 import pycocotools.mask as maskUtils
-
+import torch
 from mmdet.core import BitmapMasks, PolygonMasks
 from ..builder import PIPELINES
+import pandas as pd
 
 try:
     from panopticapi.utils import rgb2id
@@ -82,6 +83,55 @@ class LoadImageFromFile:
                     f'file_client_args={self.file_client_args})')
         return repr_str
 
+#TODO: Load image and tracking data
+@PIPELINES.register_module()
+class LoadImageWithTrackingData(LoadImageFromFile):
+    
+    def __call__(self, results):
+        """Call functions to load image and get image meta information.
+
+        Args:
+            results (dict): Result dict from :obj:`mmdet.CustomDataset`.
+
+        Returns:
+            dict: The dict contains loaded image and meta information.
+        """
+
+        if self.file_client is None:
+            self.file_client = mmcv.FileClient(**self.file_client_args)
+
+        if results['img_prefix'] is not None:
+            filename = osp.join(results['img_prefix'],
+                                results['img_info']['filename'])
+        else:
+            filename = results['img_info']['filename']
+
+        img_bytes = self.file_client.get(filename)
+        img = mmcv.imfrombytes(img_bytes, flag=self.color_type)
+        if self.to_float32:
+            img = img.astype(np.float32)
+
+        results['filename'] = filename
+        results['ori_filename'] = results['img_info']['filename']
+        results['img'] = img
+        results['img_shape'] = img.shape
+        results['ori_shape'] = img.shape
+        results['img_fields'] = ['img']
+
+        if results['tracking_prefix'] is not None:
+            tracking_filename = osp.join(results['tracking_prefix'],
+                                results['img_info']['filename']
+                                .replace('Endzone_','')
+                                .replace('Sideline_','')
+                                .replace('.jpg','.csv'))
+        else:
+            tracking_filename = results['tracking_prefix']['filename']
+
+        tracking_df = pd.read_csv(tracking_filename)
+        results['tracking_data'] = torch.from_numpy(np.array(tracking_df[['x','y']],dtype=np.float32))
+        results['gt_idx'] = tracking_df['gt_idx'].tolist()
+        
+        return results
 
 @PIPELINES.register_module()
 class LoadImageFromWebcam(LoadImageFromFile):
