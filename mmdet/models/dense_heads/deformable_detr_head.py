@@ -316,3 +316,138 @@ class DeformableDETRHead(DETRHead):
                                                 rescale)
             result_list.append(proposals)
         return result_list
+
+@HEADS.register_module()
+class DeformableDETRHeadWithTrackingData(DeformableDETRHead):
+
+    def __init__(self,
+                 *args,
+                 with_box_refine=False,
+                 as_two_stage=False,
+                 transformer=None,
+                 **kwargs):
+        self.with_box_refine = with_box_refine
+        self.as_two_stage = as_two_stage
+        if self.as_two_stage:
+            transformer['as_two_stage'] = self.as_two_stage
+
+        super(DeformableDETRHeadWithTrackingData, self).__init__(
+            *args, transformer=transformer, **kwargs)
+    
+    def _init_layers(self):
+        """Initialize classification branch and regression branch of head."""
+
+        fc_cls = Linear(self.embed_dims, self.cls_out_channels)
+        reg_branch = []
+        for _ in range(self.num_reg_fcs):
+            reg_branch.append(Linear(self.embed_dims, self.embed_dims))
+            reg_branch.append(nn.ReLU())
+        reg_branch.append(Linear(self.embed_dims, 4))
+        reg_branch = nn.Sequential(*reg_branch)
+
+        def _get_clones(module, N):
+            return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
+
+        # last reg_branch is used to generate proposal from
+        # encode feature map when as_two_stage is True.
+        num_pred = (self.transformer.decoder.num_layers + 1) if \
+            self.as_two_stage else self.transformer.decoder.num_layers
+
+        if self.with_box_refine:
+            self.cls_branches = _get_clones(fc_cls, num_pred)
+            self.reg_branches = _get_clones(reg_branch, num_pred)
+        else:
+
+            self.cls_branches = nn.ModuleList(
+                [fc_cls for _ in range(num_pred)])
+            self.reg_branches = nn.ModuleList(
+                [reg_branch for _ in range(num_pred)])
+
+        self.tracking_embeding = Linear(2,self.embed_dims * 2)
+
+    def forward(self, mlvl_feats, img_metas):
+        """Forward function.
+
+        Args:
+            mlvl_feats (tuple[Tensor]): Features from the upstream
+                network, each is a 4D-tensor with shape
+                (N, C, H, W).
+            img_metas (list[dict]): List of image information.
+
+        Returns:
+            all_cls_scores (Tensor): Outputs from the classification head, \
+                shape [nb_dec, bs, num_query, cls_out_channels]. Note \
+                cls_out_channels should includes background.
+            all_bbox_preds (Tensor): Sigmoid outputs from the regression \
+                head with normalized coordinate format (cx, cy, w, h). \
+                Shape [nb_dec, bs, num_query, 4].
+            enc_outputs_class (Tensor): The score of each point on encode \
+                feature map, has shape (N, h*w, num_class). Only when \
+                as_two_stage is True it would be returned, otherwise \
+                `None` would be returned.
+            enc_outputs_coord (Tensor): The proposal generate from the \
+                encode feature map, has shape (N, h*w, 4). Only when \
+                as_two_stage is True it would be returned, otherwise \
+                `None` would be returned.
+        """
+
+        batch_size = mlvl_feats[0].size(0)
+        input_img_h, input_img_w = img_metas[0]['batch_input_shape']
+        img_masks = mlvl_feats[0].new_ones(
+            (batch_size, input_img_h, input_img_w))
+        for img_id in range(batch_size):
+            img_h, img_w, _ = img_metas[img_id]['img_shape']
+            img_masks[img_id, :img_h, :img_w] = 0
+
+        mlvl_masks = []
+        mlvl_positional_encodings = []
+        for feat in mlvl_feats:
+            mlvl_masks.append(
+                F.interpolate(img_masks[None],
+                              size=feat.shape[-2:]).to(torch.bool).squeeze(0))
+            mlvl_positional_encodings.append(
+                self.positional_encoding(mlvl_masks[-1]))
+
+        #TODO: change to tracking data
+        tracking_tensor = torch.cat([img_meta['tracking_data'] for img_meta in img_metas], dim=0)
+        query_embeds = self.tracking_embeding(tracking_tensor)
+            
+        hs, init_reference, inter_references, \
+            enc_outputs_class, enc_outputs_coord = self.transformer(
+                    mlvl_feats,
+                    mlvl_masks,
+                    query_embeds,
+                    mlvl_positional_encodings,
+                    reg_branches=self.reg_branches if self.with_box_refine else None,  # noqa:E501
+                    cls_branches=self.cls_branches if self.as_two_stage else None  # noqa:E501
+            )
+        hs = hs.permute(0, 2, 1, 3)
+        outputs_classes = []
+        outputs_coords = []
+
+        for lvl in range(hs.shape[0]):
+            if lvl == 0:
+                reference = init_reference
+            else:
+                reference = inter_references[lvl - 1]
+            reference = inverse_sigmoid(reference)
+            outputs_class = self.cls_branches[lvl](hs[lvl])
+            tmp = self.reg_branches[lvl](hs[lvl])
+            if reference.shape[-1] == 4:
+                tmp += reference
+            else:
+                assert reference.shape[-1] == 2
+                tmp[..., :2] += reference
+            outputs_coord = tmp.sigmoid()
+            outputs_classes.append(outputs_class)
+            outputs_coords.append(outputs_coord)
+
+        outputs_classes = torch.stack(outputs_classes)
+        outputs_coords = torch.stack(outputs_coords)
+        if self.as_two_stage:
+            return outputs_classes, outputs_coords, \
+                enc_outputs_class, \
+                enc_outputs_coord.sigmoid()
+        else:
+            return outputs_classes, outputs_coords, \
+                None, None
