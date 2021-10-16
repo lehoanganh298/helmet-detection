@@ -657,7 +657,7 @@ class DETRHead(AnchorFreeHead):
                     shape [num_query].
         """
         assert len(cls_score) == len(bbox_pred)
-        max_per_img = self.test_cfg.get('max_per_img', self.num_query)
+        max_per_img = min(self.test_cfg.get('max_per_img', self.num_query),len(cls_score))
         # exclude background
         if self.loss_cls.use_sigmoid:
             cls_score = cls_score.sigmoid()
