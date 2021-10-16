@@ -85,7 +85,7 @@ model = dict(
     ),
 )
 # Set up working dir to save files and logs.
-work_dir = './log_defomable_detr'
+work_dir = './log_helmet_detection'
 
 # The original learning rate (LR) is set for 8-GPU training.
 # We divide it by 8 since we only use one GPU.

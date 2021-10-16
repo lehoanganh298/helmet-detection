@@ -87,7 +87,7 @@ model = dict(
     test_cfg=dict(max_per_img=22)
 )
 # Set up working dir to save files and logs.
-work_dir = './log_defomable_detr'
+work_dir = './log_helmet_assignment'
 
 # The original learning rate (LR) is set for 8-GPU training.
 # We divide it by 8 since we only use one GPU.
