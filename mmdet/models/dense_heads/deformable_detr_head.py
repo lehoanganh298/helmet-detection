@@ -410,6 +410,7 @@ class DeformableDETRHeadWithTrackingData(DeformableDETRHead):
 
         #TODO: change to tracking data
         tracking_tensor = torch.cat([img_meta['tracking_data'] for img_meta in img_metas], dim=0)
+        tracking_tensor = tracking_tensor.to('cuda')
         query_embeds = self.tracking_embeding(tracking_tensor)
             
         hs, init_reference, inter_references, \
