@@ -118,14 +118,17 @@ class LoadImageWithTrackingData(LoadImageFromFile):
         results['ori_shape'] = img.shape
         results['img_fields'] = ['img']
 
-        if results['tracking_prefix'] is not None:
-            tracking_filename = osp.join(results['tracking_prefix'],
-                                results['img_info']['filename']
+        if 'tracking_filename' in results:
+            tracking_filename = results['tracking_filename']
+        else:
+            tracking_filename = (results['img_info']['filename']
                                 .replace('Endzone_','')
                                 .replace('Sideline_','')
                                 .replace('.jpg','.csv'))
-        else:
-            tracking_filename = results['tracking_prefix']['filename']
+
+        if 'tracking_prefix' in results:
+            tracking_filename = osp.join(results['tracking_prefix'],
+                                tracking_filename)
 
         tracking_df = pd.read_csv(tracking_filename)
         results['tracking_data'] = torch.from_numpy(np.array(tracking_df[['x','y']],dtype=np.float32))
