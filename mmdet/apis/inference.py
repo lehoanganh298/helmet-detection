@@ -152,6 +152,55 @@ def inference_detector(model, imgs):
     else:
         return results
 
+def inference_detector_helmet_assignment(model, img_filenames, img_prefix, tracking_filenames, tracking_prefix):
+    if isinstance(img_filenames, (list, tuple)):
+        is_batch = True
+        assert len(img_filenames) == len(tracking_filenames)
+    else:
+        img_filenames = [img_filenames]
+        assert isinstance(tracking_filenames,str)
+        tracking_filenames=[tracking_filenames]
+        is_batch = False
+
+    cfg = model.cfg
+    device = next(model.parameters()).device  # model device
+
+    cfg.data.test.pipeline = replace_ImageToTensor(cfg.data.test.pipeline)
+    test_pipeline = Compose(cfg.data.test.pipeline)
+
+    datas = []
+    for idx,img in enumerate(img_filenames):
+        # prepare data
+        # add information into dict
+        data = dict(img_info=dict(filename=img), 
+                    img_prefix=img_prefix, 
+                    tracking_filename=tracking_filenames[idx], 
+                    tracking_prefix=tracking_prefix)
+        # build the data pipeline
+        data = test_pipeline(data)
+        datas.append(data)
+
+    data = collate(datas, samples_per_gpu=len(img_filenames))
+    # just get the actual data from DataContainer
+    data['img_metas'] = [img_metas.data[0] for img_metas in data['img_metas']]
+    data['img'] = [img.data[0] for img in data['img']]
+    if next(model.parameters()).is_cuda:
+        # scatter to specified GPU
+        data = scatter(data, [device])[0]
+    else:
+        for m in model.modules():
+            assert not isinstance(
+                m, RoIPool
+            ), 'CPU inference with RoIPool is not supported currently.'
+
+    # forward the model
+    with torch.no_grad():
+        results = model(return_loss=False, rescale=True, **data)
+
+    if not is_batch:
+        return results[0]
+    else:
+        return results
 
 async def async_inference_detector(model, imgs):
     """Async inference image(s) with the detector.
