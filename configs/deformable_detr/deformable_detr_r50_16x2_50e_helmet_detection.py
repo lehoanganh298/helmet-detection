@@ -73,23 +73,24 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=2,
-    workers_per_gpu=2,
+    samples_per_gpu=1,
+    workers_per_gpu=1,
     train=dict(filter_empty_gt=False, pipeline=train_pipeline),
     val=dict(pipeline=test_pipeline),
     test=dict(pipeline=test_pipeline))
-# optimizer
-optimizer = dict(
-    type='AdamW',
-    lr=2e-4,
-    weight_decay=0.0001,
-    paramwise_cfg=dict(
-        custom_keys={
-            'backbone': dict(lr_mult=0.1),
-            'sampling_offsets': dict(lr_mult=0.1),
-            'reference_points': dict(lr_mult=0.1)
-        }))
-optimizer_config = dict(grad_clip=dict(max_norm=0.1, norm_type=2))
-# learning policy
-lr_config = dict(policy='step', step=[40])
-runner = dict(type='EpochBasedRunner', max_epochs=50)
+
+model = dict(
+    bbox_head=dict(
+        num_classes=1,
+    ),
+)
+# Set up working dir to save files and logs.
+work_dir = './log_defomable_detr'
+
+# The original learning rate (LR) is set for 8-GPU training.
+# We divide it by 8 since we only use one GPU.
+optimizer=dict(lr = 1e-5)
+
+evaluation=dict(metric = 'mAP',interval = 1)
+# We can set the checkpoint saving interval to reduce the storage cost
+checkpoint_config=dict(interval = 1)
