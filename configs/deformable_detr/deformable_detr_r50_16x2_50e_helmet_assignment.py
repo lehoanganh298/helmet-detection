@@ -84,6 +84,11 @@ model = dict(
         type='DeformableDETRHeadWithTrackingData',
         num_classes=1,
     ),
+    train_cfg=dict(
+        assigner=dict(
+            type='HelmetAssigner',
+        )
+    ),
     test_cfg=dict(max_per_img=22)
 )
 # Set up working dir to save files and logs.
