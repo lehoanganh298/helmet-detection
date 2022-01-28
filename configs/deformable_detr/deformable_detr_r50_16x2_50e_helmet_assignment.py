@@ -102,3 +102,4 @@ optimizer=dict(lr = 1e-5)
 evaluation=dict(metric = 'mAP',interval = 1)
 # We can set the checkpoint saving interval to reduce the storage cost
 checkpoint_config=dict(interval = 1)
+gpu_ids = range(1)
