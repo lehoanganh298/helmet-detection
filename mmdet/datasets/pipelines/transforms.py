@@ -816,6 +816,9 @@ class RandomCrop:
                 results[mask_key] = results[mask_key][
                     valid_inds.nonzero()[0]].crop(
                         np.asarray([crop_x1, crop_y1, crop_x2, crop_y2]))
+            
+            # Store valid_ids for helmet_assigner later
+            results['valid_ids']=valid_inds
 
         # crop semantic seg
         for key in results.get('seg_fields', []):

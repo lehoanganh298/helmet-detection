@@ -96,8 +96,16 @@ class HelmetAssigner(BaseAssigner):
             
         num_gts = gt_bboxes.size(0)
 
-        assigned_gt_inds = torch.tensor(img_meta['gt_idx'],dtype=torch.long)
-        assigned_labels = torch.tensor([0 if idx>0 else -1 for idx in img_meta['gt_idx']],dtype=torch.long)
-        
+        assigned_gt_inds = img_meta['gt_idx']
+
+        if 'valid_ids' in img_meta:
+            new_ids_map = {v:idx+1 for idx, v in enumerate((np.arange(len(img_meta['valid_ids']))+1)[img_meta['valid_ids']])}
+            assigned_gt_inds = [new_ids_map.get(v,0) for v in assigned_gt_inds]
+            
+        assigned_gt_inds = torch.tensor(assigned_gt_inds,dtype=torch.long)
+
+        assigned_labels = [gt_labels[idx-1] if idx>0 else -1 for idx in assigned_gt_inds]
+        assigned_labels = torch.tensor(assigned_labels,dtype=torch.long)
+
         return AssignResult(
             num_gts, assigned_gt_inds, None, labels=assigned_labels)
