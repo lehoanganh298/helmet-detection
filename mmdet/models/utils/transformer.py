@@ -1022,7 +1022,7 @@ class DeformableDetrTransformer(Transformer):
 
 
 @TRANSFORMER.register_module()
-class DeformableDetrTransformerWithTracking(Transformer):
+class DeformableDetrTransformerWithTracking(DeformableDetrTransformer):
     def forward(self,
                 mlvl_feats,
                 mlvl_masks,
